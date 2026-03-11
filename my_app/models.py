@@ -4,9 +4,9 @@ class Category(models.Model):
     name = models.CharField(max_length=100, verbose_name="Название категории")
 
     class Meta:
-        verbose_name = "Категория"
-        verbose_name_plural = "Категории"
-        ordering = ['name']
+        db_table = 'task_manager_category'
+        verbose_name = 'Category'
+        unique_together = (('name',),)
 
     def __str__(self):
         return self.name
@@ -28,10 +28,10 @@ class Task(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата и время создания")
 
     class Meta:
-        verbose_name = "Задача"
-        verbose_name_plural = "Задачи"
+        db_table = 'task_manager_task'
         ordering = ['-created_at']
-        unique_together = ['title', 'created_at']  # Уникальность title для даты
+        verbose_name = 'Task'
+        unique_together = (('title',),)
 
     def __str__(self):
         return self.title
@@ -53,9 +53,10 @@ class SubTask(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата и время создания")
 
     class Meta:
-        verbose_name = "Подзадача"
-        verbose_name_plural = "Подзадачи"
+        db_table = 'task_manager_subtask'
         ordering = ['-created_at']
+        verbose_name = 'SubTask'
+        unique_together = (('title',),)
 
     def __str__(self):
         return self.title
