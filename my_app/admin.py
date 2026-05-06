@@ -69,7 +69,6 @@ class SubTaskAdmin(admin.ModelAdmin):
     )
 
     readonly_fields = ['created_at']
-
     @admin.action(description='Отметить выбранные подзадачи как Done')
     def mark_as_done(self, request, queryset):
         updated = queryset.update(status='done')

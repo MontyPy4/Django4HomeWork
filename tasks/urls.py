@@ -1,7 +1,12 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
 from . import views
 
+router = DefaultRouter()
+router.register('categories', views.CategoryViewSet, basename='category')
+
 urlpatterns = [
+    path('', include(router.urls)),
     # Сохраняем существующие функции для статистики и специальных эндпоинтов
     path('statistics/', views.task_statistics, name='task_statistics'),
     path('by-weekday/', views.tasks_by_weekday, name='tasks_by_weekday'),

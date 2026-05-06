@@ -20,6 +20,13 @@ class SubTaskCreateSerializer(serializers.ModelSerializer):
 
 
 #  Переопределение методов create и update
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = '__all__'
+        read_only_fields = ['is_deleted', 'deleted_at', 'created_at']
+
+
 class CategoryCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Category

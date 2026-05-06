@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 
 
 class Task(models.Model):
@@ -14,6 +15,7 @@ class Task(models.Model):
     deadline = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    categories = models.ManyToManyField('Category', blank=True, related_name='tasks')
 
     class Meta:
         ordering = ['-created_at']
@@ -22,10 +24,20 @@ class Task(models.Model):
         return self.title
 
 
+class CategoryManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(is_deleted=False)
+
+
 class Category(models.Model):
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    is_deleted = models.BooleanField(default=False)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    objects = CategoryManager()
+    all_objects = models.Manager()
 
     class Meta:
         verbose_name_plural = "Categories"
@@ -33,6 +45,11 @@ class Category(models.Model):
 
     def __str__(self):
         return self.name
+
+    def delete(self, *args, **kwargs):
+        self.is_deleted = True
+        self.deleted_at = timezone.now()
+        self.save()
 
 
 class SubTask(models.Model):
