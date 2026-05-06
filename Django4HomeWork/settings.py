@@ -145,3 +145,78 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+REST_FRAMEWORK = {
+    'DEFAULT_PAGINATION_CLASS': 'tasks.pagination.DefaultCursorPagination',
+    'PAGE_SIZE': 6,
+}
+
+LOGS_DIR = BASE_DIR / 'logs'
+LOGS_DIR.mkdir(exist_ok=True)
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+
+    'formatters': {
+        'console': {
+            'format': '[{asctime}] {levelname} {name}: {message}',
+            'style': '{',
+            'datefmt': '%Y-%m-%d %H:%M:%S',
+        },
+        'file': {
+            'format': '[{asctime}] {levelname} {name} {module}: {message}',
+            'style': '{',
+            'datefmt': '%Y-%m-%d %H:%M:%S',
+        },
+    },
+
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'console',
+            'level': 'INFO',
+        },
+        'http_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': LOGS_DIR / 'http_logs.log',
+            'maxBytes': 1024 * 1024 * 5,  # 5 MB
+            'backupCount': 3,
+            'formatter': 'file',
+            'level': 'INFO',
+            'encoding': 'utf-8',
+        },
+        'db_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': LOGS_DIR / 'db_logs.log',
+            'maxBytes': 1024 * 1024 * 5,  # 5 MB
+            'backupCount': 3,
+            'formatter': 'file',
+            'level': 'DEBUG',
+            'encoding': 'utf-8',
+        },
+    },
+
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['http_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'django.server': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'django.db.backends': {
+            'handlers': ['db_file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+    },
+}
