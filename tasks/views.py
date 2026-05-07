@@ -11,13 +11,19 @@ from django.utils import timezone
 from datetime import datetime
 from .models import Task, SubTask, Category
 from .serializers import TaskSerializer, SubTaskCreateSerializer, SubTaskSerializer, CategorySerializer
+from rest_framework.permissions import IsAuthenticated
+from .permissions import IsOwnerOrReadOnly
 
 
 class CategoryViewSet(viewsets.ModelViewSet):
     serializer_class = CategorySerializer
+    permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
 
     def get_queryset(self):
         return Category.objects.all()
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
 
     @action(detail=True, methods=['get'])
     def count_tasks(self, request, pk=None):
@@ -141,11 +147,8 @@ def tasks_by_weekday(request: Request) -> Response:
 
 # Задание 1: Generic Views для задач
 class TaskListCreateView(ListCreateAPIView):
-    """
-    Generic View для создания и получения списка задач
-    """
-    queryset = Task.objects.all()
     serializer_class = TaskSerializer
+    permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = {
         'status': ['exact'],
@@ -155,14 +158,20 @@ class TaskListCreateView(ListCreateAPIView):
     ordering_fields = ['created_at', 'deadline', 'title']
     ordering = ['-created_at']
 
+    def get_queryset(self):
+        return Task.objects.all()
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
+
 
 class TaskDetailUpdateDeleteView(RetrieveUpdateDestroyAPIView):
-    """
-    Generic View для получения, обновления и удаления задач
-    """
-    queryset = Task.objects.all()
     serializer_class = TaskSerializer
+    permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
     lookup_field = 'id'
+
+    def get_queryset(self):
+        return Task.objects.all()
 
 
 #  Класс пагинации для подзадач
@@ -211,11 +220,8 @@ def subtasks_filtered(request: Request) -> Response:
 
 # Задание 2: Generic Views для подзадач
 class SubTaskListCreateView(ListCreateAPIView):
-    """
-    Generic View для создания и получения списка подзадач
-    """
-    queryset = SubTask.objects.all()
     serializer_class = SubTaskCreateSerializer
+    permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
     pagination_class = SubTaskPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = {
@@ -226,11 +232,17 @@ class SubTaskListCreateView(ListCreateAPIView):
     ordering_fields = ['created_at', 'title', 'task__title']
     ordering = ['-created_at']
 
+    def get_queryset(self):
+        return SubTask.objects.all()
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
+
 
 class SubTaskDetailUpdateDeleteView(RetrieveUpdateDestroyAPIView):
-    """
-    Generic View для получения, обновления и удаления подзадач
-    """
-    queryset = SubTask.objects.all()
     serializer_class = SubTaskCreateSerializer
+    permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
     lookup_field = 'pk'
+
+    def get_queryset(self):
+        return SubTask.objects.all()
