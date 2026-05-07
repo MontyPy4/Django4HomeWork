@@ -1,6 +1,52 @@
 from rest_framework import serializers
 from django.utils import timezone
+from django.contrib.auth.models import User
 from .models import Task, SubTask, Category
+
+
+class LoginSerializer(serializers.Serializer):
+    username = serializers.CharField(required=True)
+    password = serializers.CharField(required=True, write_only=True)
+
+
+class RegisterSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(required=True)
+    password = serializers.CharField(write_only=True, min_length=8)
+    password_confirm = serializers.CharField(write_only=True)
+
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'password', 'password_confirm']
+
+    def validate_username(self, value):
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError('Пользователь с таким именем уже существует.')
+        return value
+
+    def validate_email(self, value):
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError('Пользователь с таким email уже существует.')
+        return value
+
+    def validate_password(self, value):
+        if not any(c.isdigit() for c in value):
+            raise serializers.ValidationError('Пароль должен содержать хотя бы одну цифру.')
+        if not any(c.isalpha() for c in value):
+            raise serializers.ValidationError('Пароль должен содержать хотя бы одну букву.')
+        return value
+
+    def validate(self, data):
+        if data['password'] != data['password_confirm']:
+            raise serializers.ValidationError({'password_confirm': 'Пароли не совпадают.'})
+        return data
+
+    def create(self, validated_data):
+        validated_data.pop('password_confirm')
+        return User.objects.create_user(
+            username=validated_data['username'],
+            email=validated_data['email'],
+            password=validated_data['password'],
+        )
 
 
 class TaskSerializer(serializers.ModelSerializer):

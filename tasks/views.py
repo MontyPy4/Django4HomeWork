@@ -3,16 +3,136 @@ from rest_framework.response import Response
 from rest_framework import status, viewsets
 from rest_framework.request import Request
 from rest_framework.views import APIView
-from rest_framework.generics import get_object_or_404, ListCreateAPIView, RetrieveUpdateDestroyAPIView
+from rest_framework.generics import get_object_or_404, ListCreateAPIView, RetrieveUpdateDestroyAPIView, CreateAPIView
 from rest_framework.pagination import PageNumberPagination
 from rest_framework import filters
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 from django_filters.rest_framework import DjangoFilterBackend
+from django.contrib.auth import authenticate
 from django.utils import timezone
 from datetime import datetime
 from .models import Task, SubTask, Category
-from .serializers import TaskSerializer, SubTaskCreateSerializer, SubTaskSerializer, CategorySerializer
-from rest_framework.permissions import IsAuthenticated
+from .serializers import TaskSerializer, SubTaskCreateSerializer, SubTaskSerializer, CategorySerializer, RegisterSerializer, LoginSerializer
 from .permissions import IsOwnerOrReadOnly
+
+
+class LoginView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = LoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = authenticate(
+            username=serializer.validated_data['username'],
+            password=serializer.validated_data['password'],
+        )
+
+        if user is None:
+            return Response(
+                {'detail': 'Неверный логин или пароль.'},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        if not user.is_active:
+            return Response(
+                {'detail': 'Аккаунт заблокирован.'},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        refresh = RefreshToken.for_user(user)
+        access = refresh.access_token
+
+        response = Response(
+            {'detail': 'Вход выполнен успешно.', 'username': user.username},
+            status=status.HTTP_200_OK,
+        )
+        response.set_cookie(
+            'access_token', str(access),
+            httponly=True, secure=False, samesite='Lax',
+            max_age=900,
+        )
+        response.set_cookie(
+            'refresh_token', str(refresh),
+            httponly=True, secure=False, samesite='Lax',
+            max_age=86400,
+        )
+        return response
+
+
+class CookieRefreshView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        refresh_token = request.COOKIES.get('refresh_token')
+
+        if not refresh_token:
+            return Response(
+                {'detail': 'Refresh токен не найден в cookies.'},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        try:
+            refresh = RefreshToken(refresh_token)
+            new_access = refresh.access_token
+        except TokenError:
+            return Response(
+                {'detail': 'Refresh токен недействителен или истёк.'},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        response = Response(
+            {'detail': 'Access токен обновлён.'},
+            status=status.HTTP_200_OK,
+        )
+        response.set_cookie(
+            'access_token', str(new_access),
+            httponly=True, secure=False, samesite='Lax',
+            max_age=900,
+        )
+        return response
+
+
+class LogoutView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        refresh_token = request.COOKIES.get('refresh_token')
+
+        if not refresh_token:
+            return Response(
+                {'detail': 'Refresh токен не найден в cookies.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            RefreshToken(refresh_token).blacklist()
+        except (TokenError, InvalidToken):
+            pass
+
+        response = Response(
+            {'message': 'Выход выполнен успешно.'},
+            status=status.HTTP_200_OK,
+        )
+        response.delete_cookie('access_token', samesite='Lax')
+        response.delete_cookie('refresh_token', samesite='Lax')
+        return response
+
+
+class RegisterView(CreateAPIView):
+    serializer_class = RegisterSerializer
+    permission_classes = [AllowAny]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        return Response(
+            {'id': user.id, 'username': user.username, 'email': user.email},
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class CategoryViewSet(viewsets.ModelViewSet):
