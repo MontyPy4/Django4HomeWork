@@ -246,3 +246,42 @@ class SubTaskDetailUpdateDeleteView(RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         return SubTask.objects.all()
+
+
+class TaskViewSet(viewsets.ModelViewSet):
+    serializer_class = TaskSerializer
+    permission_classes = [IsOwnerOrReadOnly]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = {'status': ['exact'], 'deadline': ['gte', 'lte', 'exact']}
+    search_fields = ['title', 'description']
+    ordering_fields = ['created_at', 'deadline', 'title']
+    ordering = ['-created_at']
+
+    def get_queryset(self):
+        return Task.objects.all()
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
+
+    @action(detail=False, methods=['get'])
+    def my_tasks(self, request):
+        tasks = Task.objects.filter(owner=request.user)
+        serializer = self.get_serializer(tasks, many=True)
+        return Response(serializer.data)
+
+
+class SubTaskViewSet(viewsets.ModelViewSet):
+    serializer_class = SubTaskCreateSerializer
+    permission_classes = [IsOwnerOrReadOnly]
+    pagination_class = SubTaskPagination
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = {'completed': ['exact'], 'task__deadline': ['gte', 'lte', 'exact']}
+    search_fields = ['title', 'description']
+    ordering_fields = ['created_at', 'title', 'task__title']
+    ordering = ['-created_at']
+
+    def get_queryset(self):
+        return SubTask.objects.all()
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
